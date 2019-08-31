@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        #c1{border: 1px solid black;
+            margin-left:500px;}
+    </style>
+    <script src="js/easeljs-0.8.2.min.js"></script>
+    <script src="js/preloadjs-0.6.2.min.js"></script>
+    <script src="js/soundjs-0.6.2.min.js"></script>
+    <script>
+        window.onload = function () {
+            var bgMusic;//背景音乐对象
+            var score = 0;//分数
+            var scoreText;//分数文本对象
+            var trackSpeed = 8;//赛道的速度
+            var carMove;//赛车移动的步数
+            var bb = [];//存放便便的数组
+            var bbBefore = [];//存放便便以前的数据
+            var oImgTrack1,oImgTrack2,oImgCar,oImgBB;
+            var bitmapTrack1,bitmapTrack2,bitmapCar;//Bitmap对象
+            var stage = new createjs.Stage("c1");//舞台对象
+            var loader = new createjs.LoadQueue(false);//加载资源对象
+            loader.installPlugin(createjs.Sound);//注册声音
+            loader.addEventListener("complete",handleComplete);//资源全部加载完成后调用handleComplete()函数
+            loader.loadManifest([
+                {id:"oImgTrack1",src:"images/赛道1.png"},
+                {id:"oImgTrack2",src:"images/赛道2.png"},
+                {id:"oImgCar",src:"images/赛车.png"},
+                {id:"oImgBB",src:"images/大便.png"},
+                {id:"bgMusic",src:"music/bgmusic.mp3"},
+            ]);//预加载资源
+            
+            setInterval(function () {//游戏主入口
+                removeFromStage();//将之前所有绘制过的从舞台移除
+                trackMove();//赛道移动
+                carDie();//赛车死亡
+                bbMove();
+                checkCarBumpBB();
+                showScoreText(score);
+                score += 1;
+            },1000/60);
+
+            function handleComplete() {//资源全部加载完成后将得到bitmapTrack1,bitmapTrack2,bitmapCar,bitmapBB对象
+                //得到bitmapTrack1
+                oImgTrack1 = loader.getResult("oImgTrack1");
+                bitmapTrack1 = new createjs.Bitmap(oImgTrack1);
+                //得到bitmapTrack2
+                oImgTrack2 = loader.getResult("oImgTrack2");
+                bitmapTrack2 = new createjs.Bitmap(oImgTrack2);
+                bitmapTrack2.y = -600;//初始化赛道2的坐标
+                //得到bitmapCar
+                oImgCar = loader.getResult("oImgCar");
+                bitmapCar = new createjs.Bitmap(oImgCar);
+                bitmapCar.x = stage.canvas.width/2 - 20;
+                bitmapCar.y = 450;//初始化赛车坐标
+                //得到bitmapBB
+                oImgBB = loader.getResult("oImgBB");
+                //播放背景音乐
+                bgMusic = createjs.Sound.createInstance("bgMusic");
+                bgMusic.play();
+                bgMusic.loop = -1;
+                carMove = oImgBB.width;//初始化carMove
+
+            }
+
+            document.onkeydown = function (ev) {//键盘按下事件
+                var oEvent = ev || event;
+                var getKeyCode = oEvent.keyCode;
+                if(getKeyCode == 39){//汽车向右走
+                    bitmapCar.x += carMove;
+                }else if(getKeyCode == 37){//汽车向右走
+                    bitmapCar.x -= carMove;
+                }else if(getKeyCode == 38){//汽车向前走
+                    bitmapCar.y -= carMove;
+                }else if(getKeyCode == 40){//汽车向后走
+                    bitmapCar.y += carMove;
+                }
+            }
+
+            function trackMove() {//赛道移动的方法
+                if(bitmapTrack1.y >= stage.canvas.height || bitmapTrack2.y >= stage.canvas.height){//若赛道1全部消失在舞台则将坐标y设置为0;若赛道2全部消失在舞台则将坐标y设置为-600
+                    bitmapTrack1.y = 0;
+                    bitmapTrack2.y = -600;
+                }else{//赛道1、2的坐标加3
+                    bitmapTrack1.y += trackSpeed;
+                    bitmapTrack2.y += trackSpeed;
+                }
+                addResource();
+
+            }
+
+            function carDie() {//汽车死亡的方法
+                if(bitmapCar.x < 75 || bitmapCar.x > 231 || bitmapCar.y < -2 || bitmapCar.y >= 520){//汽车超出行驶范围将结束游戏
+                    bgMusic.stop();//游戏结束
+                    alert("游戏结束！" + "\n成绩是" + score + "m" + "\n点击确定重新游戏");
+                    window.location.reload();
+                }
+            }
+
+            function AU(bitmap) {//舞台添加和更新的方法
+                stage.addChild(bitmap);
+                stage.update();
+            }
+
+            //将资源添加进舞台的方法
+            function addResource() {
+                AU(bitmapTrack1);//将赛道1添加进舞台
+                AU(bitmapTrack2);//将赛道2添加进舞台
+                AU(bitmapCar);//将赛车添加进舞台
+            }
+
+            function showScoreText(s) {//绘制倒计时的方法
+                scoreText = new createjs.Text("" + s + " m","20px Arial","red");
+                scoreText.x = 300 - scoreText.getBounds().width / 2;
+                scoreText.y = 50 - scoreText.getBounds().height / 2;
+                AU(scoreText);
+            }
+
+            function removeFromStage() {//将之前在舞台上绘制的移除
+                stage.removeChild(bitmapTrack1);
+                stage.removeChild(bitmapTrack2);
+                stage.removeChild(scoreText);
+
+            }
+
+            function bbMove() { //便便移动的方法
+                if(bb.length == 0){
+                    bb[0] = new createjs.Bitmap(oImgBB);
+                    bb[0].x = 80;
+                    bb[0].y = 0;
+                    bb[1] = new createjs.Bitmap(oImgBB);
+                    bb[1].x = 141;
+                    bb[1].y = -180;
+                    bb[2] = new createjs.Bitmap(oImgBB);
+                    bb[2].x = 200;
+                    bb[2].y = -360;
+                    bbBefore = [
+                        {x:80,y:0},
+                        {x:141,y:-180},
+                        {x:200,y:-360},
+                    ]}
+                for(var i=0;i<bb.length;i++){
+                    if(bb[i].y >= stage.canvas.height){
+                        var j = Math.floor(Math.random() * 3);
+                        bb[i].x = bbBefore[j].x;
+                        bb[i].y = bbBefore[j].y;
+                    }
+                    bb[i].y += 5;
+                    AU(bb[i]);
+                }
+            }
+
+            function checkCarBumpBB() {//汽车与便便的碰撞检测方法
+                for(var i=0;i<bb.length;i++){
+                    var bitmapCarAllX  = bitmapCar.x + Math.random() * oImgCar.width;
+                    var bitmapCarAllY  = bitmapCar.y + Math.random() * oImgCar.height;
+                    var betweenX = (bitmapCarAllX >= bb[i].x) && (bitmapCar.x <= (bb[i].x + oImgBB.width - 5));
+                    var betweenY = (bitmapCarAllY >= bb[i].y) && (bitmapCar.y <= (bb[i].y + oImgBB.height));
+                    if(betweenX && betweenY){
+                        bgMusic.stop();
+                        alert("游戏结束！" + "\n成绩是" + score + "m" + "\n点击确定重新游戏");
+                        window.location.reload();
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+<canvas id="c1" width="350px" height="600px"></canvas>
+</body>
+</html>
